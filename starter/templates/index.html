@@ -2,17 +2,50 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sudoku Game</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <h1>Sudoku Game</h1>
-  <div id="sudoku-board"></div>
-  <div class="controls">
-    <button id="new-game">New Game</button>
-    <button id="check-solution">Check Solution</button>
-    <span id="message"></span>
-  </div>
+  <main class="app-shell">
+    <header class="page-header">
+      <h1>Sudoku Game</h1>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">🌙 Dark Mode</button>
+    </header>
+
+    <section class="game-area">
+      <div id="sudoku-board" class="sudoku-board" aria-label="Sudoku board"></div>
+    </section>
+
+    <section class="controls" aria-label="Game controls">
+      <span id="timer-display" class="timer-display">Time: 00:00</span>
+      <label for="difficulty-select">Difficulty:</label>
+      <select id="difficulty-select">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <button id="new-game">New Game</button>
+      <button id="hint-button">Hint</button>
+      <button id="check-solution">Check Solution</button>
+      <span id="message" class="status-message"></span>
+    </section>
+
+    <section id="completion-panel" class="completion-panel" hidden>
+      <h2>Congratulations!</h2>
+      <p id="completion-message"></p>
+      <label for="player-name">Name:</label>
+      <input id="player-name" type="text" maxlength="30" placeholder="Enter your name">
+      <button id="submit-score">Save Score</button>
+    </section>
+
+    <section id="leaderboard" class="leaderboard">
+      <h3>Top 10 Leaderboard</h3>
+      <ol id="leaderboard-list"></ol>
+    </section>
+  </main>
+
   <script src="/static/main.js"></script>
+  <script src="/static/theme.js"></script>
 </body>
 </html>
