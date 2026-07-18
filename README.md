@@ -58,3 +58,37 @@ Use GitHub Copilot to refactor the code for this game to add more advanced featu
 - The game should be responsive and work well on both desktop and mobile devices.
 - UI colors should be visually appealing and accessible.
 - Completed and correct puzzles should display a congratulatory message with the time taken and hints used and ask for the user's name for Top 10 times.
+
+## Features Implemented
+
+This project has been refactored using GitHub Copilot and includes the following enhancements:
+
+- Modernized and modular Flask application structure
+- Sudoku puzzle generator with a unique solution
+- Difficulty selector (Easy, Medium, Hard)
+- Locked prefilled cells
+- Live validation with visual feedback for invalid moves
+- Hint button that fills one correct cell and locks it
+- Check Solution button that highlights incorrect entries
+- Game timer
+- Completion message when the puzzle is solved
+- Top 10 leaderboard using browser Local Storage
+- Dark/Light mode toggle
+- Responsive layout for desktop and mobile devices
+- Alternating colors for the 3×3 Sudoku subgrids
+- Automated testing using pytest
+
+## Running the Tests
+
+Run the automated test suite:
+
+```bash
+pytest -q
+```
+
+If you are using the project's virtual environment on Windows:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+pytest -q
+```
