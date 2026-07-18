@@ -19,6 +19,7 @@ function handleCellBlur(event) {
 }
 
 function createBoardElement() {
+  // Build the board DOM from the current puzzle size without changing the gameplay logic.
   const boardDiv = document.getElementById('sudoku-board');
   boardDiv.innerHTML = '';
   for (let i = 0; i < SIZE; i++) {
@@ -103,6 +104,7 @@ function getConflictSets(board) {
 }
 
 function updateCellClasses(inputs, incorrectIndices = new Set(), board = null, hintedCellIndex = null, options = {}) {
+  // Preserve the board styling while adding or removing validation and hint classes.
   const includeValidation = options.includeValidation !== false;
   const preserveExisting = options.preserveExisting === true;
   const validation = includeValidation && board ? getConflictSets(board) : { invalidCells: new Set(), conflictCells: new Set() };
@@ -168,6 +170,7 @@ function handleCellInput(e) {
 }
 
 function renderPuzzle(puz, serverLockedCells = [], hintedCell = null) {
+  // Render the latest puzzle state and keep the visual state in sync with the server data.
   puzzle = puz;
   lockedCells = new Set();
   const boardDiv = document.getElementById('sudoku-board');
@@ -244,66 +247,85 @@ function startTimer() {
   }, 1000);
 }
 
+function updateStatusMessage(message, isError = false) {
+  const msg = document.getElementById('message');
+  msg.style.color = isError ? '#d32f2f' : '#388e3c';
+  msg.innerText = message;
+}
+
 async function newGame() {
-  const difficulty = document.getElementById('difficulty-select').value;
-  const res = await fetch(`/new?difficulty=${encodeURIComponent(difficulty)}`);
-  const data = await res.json();
-  renderPuzzle(data.puzzle, [], null);
-  completionData = null;
-  hideCompletionPanel();
-  document.getElementById('message').innerText = '';
-  document.getElementById('player-name').value = '';
-  await refreshTimerDisplay();
-  startTimer();
+  try {
+    const difficulty = document.getElementById('difficulty-select').value;
+    const res = await fetch(`/new?difficulty=${encodeURIComponent(difficulty)}`);
+    if (!res.ok) {
+      throw new Error('Request failed. Please try again.');
+    }
+    const data = await res.json();
+    renderPuzzle(data.puzzle, [], null);
+    completionData = null;
+    hideCompletionPanel();
+    updateStatusMessage('');
+    document.getElementById('player-name').value = '';
+    await refreshTimerDisplay();
+    startTimer();
+  } catch (error) {
+    updateStatusMessage(error.message || 'Request failed. Please try again.', true);
+  }
 }
 
 async function requestHint() {
-  const res = await fetch('/hint', { method: 'POST' });
-  const data = await res.json();
-  const msg = document.getElementById('message');
-  if (data.error) {
-    msg.style.color = '#d32f2f';
-    msg.innerText = data.error;
-    return;
+  try {
+    const res = await fetch('/hint', { method: 'POST' });
+    if (!res.ok) {
+      throw new Error('Request failed. Please try again.');
+    }
+    const data = await res.json();
+    if (data.error) {
+      updateStatusMessage(data.error, true);
+      return;
+    }
+    renderPuzzle(data.puzzle, data.locked_cells || [], data.hinted_cell || null);
+    updateStatusMessage('Hint used.');
+  } catch (error) {
+    updateStatusMessage(error.message || 'Request failed. Please try again.', true);
   }
-  renderPuzzle(data.puzzle, data.locked_cells || [], data.hinted_cell || null);
-  msg.style.color = '#388e3c';
-  msg.innerText = 'Hint used.';
 }
 
 async function checkSolution() {
-  const { board, inputs } = getBoardFromInputs();
-  const res = await fetch('/check', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ board })
-  });
-  const data = await res.json();
-  const msg = document.getElementById('message');
-  if (data.error) {
-    msg.style.color = '#d32f2f';
-    msg.innerText = data.error;
-    return;
-  }
-  const incorrect = new Set(data.incorrect.map((cell) => getCellIndex(cell[0], cell[1])));
-  updateCellClasses(inputs, incorrect, board, lastHintedCellIndex, { includeValidation: false, preserveExisting: true });
-  if (data.is_solved) {
-    stopTimer();
-    completionData = {
-      completion_time: data.completion_time,
-      elapsed_seconds: data.elapsed_seconds,
-    };
-    showCompletionPanel(completionData);
-    await refreshTimerDisplay();
-    msg.style.color = '#388e3c';
-    msg.innerText = 'Congratulations! You solved it!';
-    updateLeaderboard(data.leaderboard || []);
-  } else if (incorrect.size === 0) {
-    msg.style.color = '#388e3c';
-    msg.innerText = 'No incorrect cells found.';
-  } else {
-    msg.style.color = '#d32f2f';
-    msg.innerText = 'Some cells are incorrect.';
+  try {
+    const { board, inputs } = getBoardFromInputs();
+    const res = await fetch('/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ board })
+    });
+    if (!res.ok) {
+      throw new Error('Request failed. Please try again.');
+    }
+    const data = await res.json();
+    if (data.error) {
+      updateStatusMessage(data.error, true);
+      return;
+    }
+    const incorrect = new Set(data.incorrect.map((cell) => getCellIndex(cell[0], cell[1])));
+    updateCellClasses(inputs, incorrect, board, lastHintedCellIndex, { includeValidation: false, preserveExisting: true });
+    if (data.is_solved) {
+      stopTimer();
+      completionData = {
+        completion_time: data.completion_time,
+        elapsed_seconds: data.elapsed_seconds,
+      };
+      showCompletionPanel(completionData);
+      await refreshTimerDisplay();
+      updateStatusMessage('Congratulations! You solved it!');
+      updateLeaderboard(data.leaderboard || []);
+    } else if (incorrect.size === 0) {
+      updateStatusMessage('No incorrect cells found.');
+    } else {
+      updateStatusMessage('Some cells are incorrect.', true);
+    }
+  } catch (error) {
+    updateStatusMessage(error.message || 'Request failed. Please try again.', true);
   }
 }
 
@@ -312,19 +334,26 @@ async function saveScore() {
     return;
   }
 
-  const nameInput = document.getElementById('player-name');
-  const difficulty = document.getElementById('difficulty-select').value;
-  const res = await fetch('/leaderboard', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: nameInput.value,
-      elapsed_seconds: completionData.elapsed_seconds,
-      difficulty,
-    })
-  });
-  const data = await res.json();
-  updateLeaderboard(data.leaderboard || []);
+  try {
+    const nameInput = document.getElementById('player-name');
+    const difficulty = document.getElementById('difficulty-select').value;
+    const res = await fetch('/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: nameInput.value,
+        elapsed_seconds: completionData.elapsed_seconds,
+        difficulty,
+      })
+    });
+    if (!res.ok) {
+      throw new Error('Request failed. Please try again.');
+    }
+    const data = await res.json();
+    updateLeaderboard(data.leaderboard || []);
+  } catch (error) {
+    updateStatusMessage(error.message || 'Request failed. Please try again.', true);
+  }
 }
 
 // Wire buttons

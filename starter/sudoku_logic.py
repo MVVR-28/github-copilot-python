@@ -33,6 +33,7 @@ def is_safe(board, row, col, num):
     return True
 
 
+# Fill the board with a valid Sudoku solution using recursive backtracking.
 def fill_board(board):
     for row in range(SIZE):
         for col in range(SIZE):
@@ -85,6 +86,7 @@ def is_valid_board(board):
     return True
 
 
+# Count the number of valid solutions for a partial board, capped by the provided limit.
 def count_solutions(board, limit=2):
     if not is_valid_board(board):
         return 0
@@ -116,6 +118,7 @@ def has_unique_solution(board):
     return count_solutions(board, limit=2) == 1
 
 
+# Remove cells while preserving a unique Sudoku solution for the requested clue count.
 def remove_cells(board, clues):
     target_removed = SIZE * SIZE - clues
     removed = 0
@@ -150,6 +153,7 @@ def get_clue_count(clues=None, difficulty=None):
     )
 
 
+# Build a playable puzzle and its full solution for the requested clue count or difficulty.
 def generate_puzzle(clues=None, difficulty=None):
     clue_count = get_clue_count(clues=clues, difficulty=difficulty)
     board = create_empty_board()

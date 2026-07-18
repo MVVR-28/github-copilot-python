@@ -4,6 +4,8 @@ import timer_utils
 
 app = Flask(__name__)
 
+# Shared in-memory game state for the current puzzle, timer, and leaderboard.
+
 # Keep a simple in-memory store for current puzzle and solution
 CURRENT = {
     'puzzle': None,
@@ -15,6 +17,7 @@ CURRENT = {
 }
 
 
+# Reset the shared game state when a new puzzle is created.
 def reset_game_state(puzzle=None, solution=None, difficulty=None):
     CURRENT['puzzle'] = puzzle
     CURRENT['solution'] = solution
@@ -24,6 +27,7 @@ def reset_game_state(puzzle=None, solution=None, difficulty=None):
     timer_utils.reset_timer_state(CURRENT)
 
 
+# Build the completion payload used by the response and leaderboard flow.
 def get_completion_details():
     elapsed_seconds = timer_utils.get_elapsed_seconds(CURRENT)
     return {
@@ -40,6 +44,7 @@ def get_leaderboard(limit=10):
     return entries[:limit]
 
 
+# Return the positions of all non-empty cells in the current puzzle.
 def get_locked_cells(puzzle):
     return [
         [row, col]
@@ -49,6 +54,7 @@ def get_locked_cells(puzzle):
     ]
 
 
+# Find editable cells that are still empty and not already locked by a hint.
 def get_available_empty_cells(puzzle):
     locked_cells = {tuple(cell) for cell in CURRENT.get('locked_cells', [])}
     return [
@@ -59,6 +65,7 @@ def get_available_empty_cells(puzzle):
     ]
 
 
+# Compare the submitted board against the solved board and report mismatches.
 def get_incorrect_cells(board, solution):
     incorrect = []
     for i in range(sudoku_logic.SIZE):
@@ -68,6 +75,7 @@ def get_incorrect_cells(board, solution):
     return incorrect
 
 
+# Check whether every cell has been filled in.
 def is_board_complete(board):
     return all(cell != sudoku_logic.EMPTY for row in board for cell in row)
 
@@ -76,6 +84,8 @@ def is_board_complete(board):
 def index():
     return render_template('index.html')
 
+
+# Normalize request parameters for puzzle generation.
 def get_game_settings(args):
     clues = args.get('clues')
     difficulty = args.get('difficulty', '').strip().lower() or None
@@ -87,6 +97,7 @@ def get_game_settings(args):
 
 @app.route('/new')
 def new_game():
+    # Generate a fresh puzzle and reset the current game state for the client.
     settings = get_game_settings(request.args)
     puzzle, solution = sudoku_logic.generate_puzzle(
         clues=settings['clues'],
@@ -108,11 +119,19 @@ def get_timer():
 
 @app.route('/check', methods=['POST'])
 def check_solution():
-    data = request.json
+    # Validate the incoming board payload before comparing it to the solution.
+    try:
+        data = request.get_json(silent=True) or {}
+    except Exception:
+        data = {}
+
     board = data.get('board')
     solution = CURRENT.get('solution')
     if solution is None:
         return jsonify({'error': 'No game in progress'}), 400
+
+    if not isinstance(board, list) or len(board) != sudoku_logic.SIZE or not all(isinstance(row, list) for row in board):
+        return jsonify({'error': 'Invalid board payload'}), 400
 
     incorrect = get_incorrect_cells(board, solution)
     is_complete = is_board_complete(board)
@@ -136,7 +155,12 @@ def check_solution():
 
 @app.route('/leaderboard', methods=['POST'])
 def save_leaderboard_entry():
-    data = request.json or {}
+    # Accept leaderboard submissions and normalize the incoming data.
+    try:
+        data = request.get_json(silent=True) or {}
+    except Exception:
+        data = {}
+
     name = (data.get('name') or '').strip() or 'Anonymous'
     elapsed_seconds = int(data.get('elapsed_seconds', 0) or 0)
     difficulty = (data.get('difficulty') or CURRENT.get('difficulty') or 'medium').strip().lower() or 'medium'
@@ -153,6 +177,7 @@ def save_leaderboard_entry():
 
 @app.route('/hint', methods=['POST'])
 def give_hint():
+    # Fill one available blank cell with the correct value and lock it for the player.
     if CURRENT.get('solution') is None or CURRENT.get('puzzle') is None:
         return jsonify({'error': 'No game in progress'}), 400
 
